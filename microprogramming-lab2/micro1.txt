@@ -1,0 +1,420 @@
+
+#
+# WepSIM (https://wepsim.github.io/wepsim/)
+#
+
+begin
+{
+              # R0 <- 0
+              (EXCODE=0, T11, MR=1, SelC=0, LC=1),  # Ensure R0 is zero
+
+    fetch:    # Fetch instruction from memory
+              # MAR <- PC
+              (MR=1, SELA=00000, T2=1, C0=1),        # Load PC into MAR
+              
+              # MBR <- Mem[MAR]
+              (TA=1, R=1, BW=11, M1=1, C1=1),        # Fetch instruction into MBR
+
+              # IR <- MBR, PC <- PC + 4
+              (T1=1, C4=1),                          # Load MBR into IR (Instruction Register)
+              (SE=0, OFFSET=0, SIZE=100, T3=1, C5=1),# Increment PC to point to the next instruction
+
+              # Jump to associated microcode for opcode
+              (A0=0, B=0, C=0),                      # Decode opcode and branch
+}
+
+
+#
+# RISC-V instructions that can be used / Instrucciones RISC-V que pueden usarse
+#
+
+li reg val {
+     co=111111,
+     nwords=1,
+     reg=reg(25,21),
+     val=imm(20,0),
+     help='r1 = SignExt(val)',
+     {
+          (SE=1, OFFSET=0, SIZE=10100, T3=1, LC=1, MR=0, SELC=10101, A0=1, B=1, C=0)
+     }
+}
+
+rdcycle reg1  {
+      co=111111,
+      nwords=1,
+      reg1=reg(25,21),
+      help='reg1 = load accumulated clock cycles',
+      {
+           (MH=1, T12=1, SELC=10101, LC=1, A0=1, B=1, C=0)
+      }
+}
+
+in reg val {
+     co=111111,
+     nwords=1,
+     reg=reg(25,21),
+     val=imm(15,0),
+     help='reg = device_registers[val]',
+     {
+         (SE=0, OFFSET=0, SIZE=10000, T3=1, C0=1),
+         (TA=1, IOR=1, BW=11, M1=1, C1=1),
+         (T1=1, LC=1,  MR=0, SELC=10101, A0=1, B=1, C=0)
+     }
+}
+
+out reg val {
+     co=111111,
+     nwords=1,
+     reg=reg(25,21),
+     val=imm(15,0),
+     help='device_register[val] = reg',
+     {
+         (SE=0, OFFSET=0,   SIZE=10000,   T3=1, C0=1),
+         (MR=0, SELA=10101, T9=1,         M1=0, C1=1),
+         (TA=1, TD=1,       IOW=1, BW=11, A0=1, B=1, C=0)
+     }
+}
+
+add reg1 reg2 reg3 {
+      co=111111,
+      nwords=1,
+      reg1=reg(25,21),
+      reg2=reg(20,16),
+      reg3=reg(15,11),
+      help='r1 = r2 + r3',
+      {
+          (MC=1, MR=0, SELA=1011, SELB=10000, MA=0, MB=0, SELCOP=1010, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0)
+      }
+}
+
+addi reg1 reg2 val {
+         co=111111,
+         nwords=1,
+         reg1 = reg(25,21),
+         reg2 = reg(20,16),
+         val  = imm(15,0),
+         help ='r1 = r2 + val',
+         {
+             (SE=1, OFFSET=0, SIZE=10000, T3=1, C4=1),
+             (MC=1, MR=0, SELB=10000, MA=1, MB=0, SELCOP=1010, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0)
+         }
+}
+
+sub reg1 reg2 reg3 {
+      co=111111,
+      nwords=1,
+      reg1=reg(25,21),
+      reg2=reg(20,16),
+      reg3=reg(15,11),
+      help='r1 = r2 - r3',
+      {
+          (MC=1, MR=0, SELB=1011, SELA=10000, MA=0, MB=0, SELCOP=1011, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0)
+      }
+}
+
+mul reg1 reg2 reg3 {
+      co=111111,
+      nwords=1,
+      reg1=reg(25,21),
+      reg2=reg(20,16),
+      reg3=reg(15,11),
+      help='reg1 = reg2 * reg3',
+      {
+          (MC=1, MR=0, SELA=1011, SELB=10000, MA=0, MB=0, SELCOP=1100, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0)
+      }
+}
+
+and reg1 reg2 reg3 {
+     co=111111,
+     nwords=1,
+     reg1=reg(25,21),
+     reg2=reg(20,16),
+     reg3=reg(15,11),
+     help='r1 = r2 & r3',
+     {
+          (MC=1, MR=0, SELA=1011, SELB=10000, MA=0, MB=0, SELCOP=1, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0)
+     }
+}
+
+lb reg1 (reg2) {
+     co=111111,
+     nwords=1,
+     reg1 = reg(25,21),
+     reg2 = reg(20,16),
+     help='r1 = MEM[r2]/8',
+     {
+          (MR=0, SELA=10000, T9=1, C0),
+          (TA=1, R=1, BW=00, SE=1, M1=1, C1=1),
+          (T1=1, LC=1, MR=0, SELC=10101, SE=1, A0=1, B=1, C=0)
+     }
+}
+
+sb reg1 (reg2) {
+         co=111111,
+         nwords=1,
+         reg1 = reg(25,21),
+         reg2 = reg(20,16),
+         {
+             (MR=0,  SELA=10000, T9=1, C0=1),
+             (MR=0,  SELA=10101, T9=1, M1=0, C1=1),
+             (BW=0,  TA=1, TD=1, W=1,  A0=1, B=1, C=0)
+         }
+}
+
+lw rd offset(rs1) {
+      co=010010,
+      nwords=1,
+      rd=reg(25,21),
+      offset=imm(15,0),
+      rs1=reg(20,16),
+      help='rd = (MEM[rs1+offset+3] .. MEM[rs1+offset])',
+      {
+          (SE=1, OFFSET=0, SIZE=10000, T3=1, C5=1),
+          (MR=0, SELA=10000, MA=0, MB=1, MC=1, SELCOP=1010, T6=1, C0=1),
+          (TA=1, R=1, BW=11, M1=1, C1=1),
+          (T1=1, LC=1, MR=0, SELC=10101, A0=1, B=1, C=0)
+      }
+}
+
+sw reg1 val(reg2) {
+      co=010111,
+      nwords=1,
+      reg1 = reg(25,21),
+      val  = imm(15,0),
+      reg2 = reg(20,16),
+      help='MEM[rs1+offset+3 .. rs1+offset] = rs2',
+      {
+          (SE=1, OFFSET=0, SIZE=10000, T3=1, C5=1),
+          (MR=0, SELA=10000, MA=0, MB=1, MC=1, SELCOP=1010, T6=1, C0=1),
+          (MR=0,  SELA=10101, T9=1, M1=0, C1=1),
+          (BW=11, TA=1, TD=1, W=1,  A0=1, B=1, C=0)
+      }
+}
+
+beq reg reg offset {
+     co=111111,
+     nwords=1,
+     reg=reg(25,21),
+     reg=reg(20,16),
+     offset=address(15,0)rel,
+     help='if ($r1 == $r2) pc += 4*offset',
+     {
+             (T8, C5),
+             (SELA=10101, SELB=10000, MC=1, SELCOP=1011, SELP=11, M7, C7),
+             (A0=0, B=1, C=110, MADDR=bck2ftch),
+             (T5, M7=0, C7),
+             (T2, C5),
+             (SE=1, OFFSET=0, SIZE=10000, T3, C4),
+             (MA=1, MB=10, MC=1, SELCOP=1100, T6, C4),
+             (MA=1, MB=1, MC=1, SELCOP=1010, T6, C2, A0=1, B=1, C=0),
+   bck2ftch: (T5, M7=0, C7),
+             (A0=1, B=1, C=0)
+     }
+}
+
+
+#
+# Extension: new instructions
+#
+
+# lx reg1 u32            { ... }
+# call u32               { ... }
+# return                 { ... }
+# stop                   { ... }
+# vfill reg1 (reg2) val1 { ... }
+# vadd  reg1 (reg2) reg3 { ... }
+
+
+lx reg1 u32 {
+    co=100110,                # Opcode: 100110
+    nwords=2,                 # Instruction spans 2 words (instruction + immediate value)
+    reg1=reg(25,21),           # Register field (REG1)
+    u32=imm(63,32),           # 32-bit unsigned immediate value (U32)
+    help='Store U32 in REG1: RF[REG1] ← U32',
+    {
+        # Load U32 into register RF[REG1]
+        (SE=0, OFFSET=0, SIZE=10000, T3=1, C5=1),            # Load immediate U32
+        (MR=0, SELA=10000, SELC=10101, LC=1, A0=1, B=1, C=0) # Store in REG1
+    }
+}
+
+call U32 {
+    co=100001,           # Opcode for "call U32"
+    nwords=2,            # Instruction spans 2 words (instruction + immediate)
+    U32=imm(63,32),          # Define U32 as an immediate value (bits 63-32)
+    help='Store PC on stack and jump to U32',
+    {
+        # Fetch instruction
+        (MR=0, SELA=00000, T2=1, C0=1),  # MAR ← PC
+        (TA=1, R=1, BW=11, M1=1, C1=1),  # MBR ← MEM[MAR]
+        (SE=0, OFFSET=0, SIZE=100, T3=1, C5=1),  # PC ← PC + 4
+
+        # Fetch U32 into RT1
+        (MR=0, SELA=00000, T2=1, C0=1),  # MAR ← PC (next word)
+        (TA=1, R=1, BW=11, M1=1, C1=1),  # MBR ← MEM[MAR]
+        (MC=1, MR=0, SELA=00000, SELB=11111, MA=0, MB=1, SELCOP=1010, T6=1, LC=1, SELC=00000),  # RT1 ← MBR
+        (SE=0, OFFSET=0, SIZE=100, T3=1, C5=1),  # PC ← PC + 4 (move to next instruction)
+
+        # Update SP
+        (SELA=10101, T9=1, SELC=10101, LC=1),  # SP ← SP - 4
+
+        # Store PC on the stack
+        (MR=1, SELA=10101, SELB=00000, T6=1, SELCOP=1010, W=1, C0),  # MEM[SP] ← PC
+
+        # Set PC to RT1
+        (MR=0, SELA=10101, SELB=00000, MA=0, MB=11, SELCOP=1010, T6=1, SELC=10101, LC=1, A0=1, B=1, C=0)  # PC ← RT1
+    }
+}
+
+return {
+    co=100010,           # Opcode for "return"
+    nwords=1,            # Instruction spans 1 word
+    help='Return to the caller: PC ← MEM[SP], SP ← SP + 4',
+    {
+        # Load return address from stack into PC
+        (MR=1, SELA=10101, T9=1, C0),                    # MAR ← SP
+        (TA=1, R=1, BW=11, M1=1, C1=1),                 # MBR ← MEM[MAR]
+        (T1=1, SELC=10101, LC=1, A0=1, B=1, C=0),       # PC ← MBR
+
+        # Increment SP
+        (SELA=10101, T9=1, SELC=10101, LC=1, A0=0, B=1, C=0)  # SP ← SP + 4
+    }
+}
+
+stop {
+    co=100011,           # Opcode for "stop"
+    nwords=1,            # Instruction spans 1 word
+    help='Stop execution: PC ← 0x00, SP ← 0x00',
+    {
+        # Reset PC
+        (SELA=00000, SELC=10101, LC=1, A0=1, B=1, C=0),  # PC ← 0x00
+
+        # Reset SP
+        (SELA=00000, SELC=10101, LC=1, A0=1, B=1, C=0)   # SP ← 0x00
+    }
+}
+
+vfill reg1 reg2 U8 {
+    co=100100,                # Opcode for "vfill"
+    nwords=1,                 # Instruction spans 1 word
+    reg1=reg(25,21),          # Register field for count (bits 25-21)
+    reg2=reg(20,16),          # Register field for start address (bits 20-16)
+    U8=imm(7,0),              # Immediate field for value (bits 7-0)
+    help='Fill reg1 bytes from address reg2 with value U8',
+    {
+        # Load reg1 (count) into temporary register RT1
+        (MR=0, SELA=11001, T6=1, SELC=00001, LC=1),   # RT1 ← RF[reg1]
+
+        # Load reg2 (start address) into temporary register RT2
+        (MR=0, SELA=10100, T6=1, SELC=00010, LC=1),   # RT2 ← RF[reg2]
+
+        # Load U8 (value to store) into temporary register RT3
+        (MR=0, SELC=00100, T3=1, LC=1),            # RT3 ← U8
+
+        # Start loop
+   loop:  (MR=1, SELA=00010, SELB=00001, SELCOP=1010, MA=1, MB=10, LC=1, W=1),  # MEM[RT2 + i] ← RT3
+
+        # Decrement RT1 and check if zero
+        (MR=0, SELA=00001, SELCOP=1011, LC=1),     # RT1 ← RT1 - 1
+        (A0=0, B=0, C=1, MADDR=end, LC=0),         # If RT1 == 0, jump to "end"
+
+        # Increment RT2
+        (MR=0, SELA=00010, SELCOP=1010, LC=1),     # RT2 ← RT2 + 1
+
+        # Jump back to loop
+        (A0=0, B=1, C=0, MADDR=loop),
+
+   end:   # Exit loop
+        # Reset reg1 to zero
+        (MR=0, SELA=00000, SELC=11001, LC=1),         # RF[reg1] ← 0
+
+        # Update reg2 with final address
+        (MR=0, SELA=00010, SELC=10100, LC=1)          # RF[reg2] ← RT2
+    }
+}
+
+
+vadd reg1 reg2 reg3 {
+    co=100101,                # Opcode for "vadd"
+    nwords=1,                 # Instruction spans 1 word
+    reg1=reg(25,21),          # Register field for count (bits 25-21)
+    reg2=reg(20,16),          # Register field for start address (bits 20-16)
+    reg3=reg(15,11),          # Register field for value to add (bits 15-11)
+    help='Add reg3 to reg1 bytes starting from reg2',
+    {
+        # Load reg1 (count) into temporary register RT1
+        (MR=0, SELA=11001, T6=1, SELC=00001, LC=1),   # RT1 ← RF[reg1]
+
+        # Load reg2 (start address) into temporary register RT2
+        (MR=0, SELA=10100, T6=1, SELC=00010, LC=1),   # RT2 ← RF[reg2]
+
+        # Load reg3 (value to add) into temporary register RT3
+        (MR=0, SELA=1111, T6=1, SELC=00011, LC=1),   # RT3 ← RF[reg3]
+
+        # Start loop
+   vadd_loop:  (MR=1, SELA=00010, SELB=00001, SELCOP=1010, MA=1, MB=10, LC=1, W=0),  # MAR ← RT2 + i
+          (TA=1, R=1, BW=11, M1=1, C1=1),                 # MBR ← MEM[MAR]
+          (MC=1, SELA=00011, SELB=10101, SELCOP=1010, LC=1),  # MBR ← MBR + RT3
+          (MR=1, SELA=00010, SELB=00001, SELCOP=1010, MA=1, MB=10, W=1, LC=1),  # MEM[addr] ← MBR
+
+        # Decrement RT1 and check if zero
+        (MR=0, SELA=00001, SELCOP=1011, LC=1),            # RT1 ← RT1 - 1
+        (A0=0, B=0, C=1, MADDR=vadd_end, LC=0),                # If RT1 == 0, jump to "end"
+
+        # Increment RT2 (address pointer)
+        (MR=0, SELA=00010, SELCOP=1010, LC=1),            # RT2 ← RT2 + 1
+
+        # Jump back to the loop
+        (A0=0, B=1, C=0, MADDR=vadd_loop),
+
+   vadd_end:   # Exit loop
+        # Reset reg1 to zero
+        (MR=0, SELA=00000, SELC=11001, LC=1),                # RF[reg1] ← 0
+
+        # Update reg2 with final address
+        (MR=0, SELA=00010, SELC=10100, LC=1)                 # RF[reg2] ← RT2
+    }
+}
+
+
+
+#
+# Registers
+#
+
+registers {
+    # Format: <Index> = (<Name>, <Alias>) (Description)
+    0=(zero,  x0),
+    1=(ra,    x1),
+    2=(sp,    x2) (stack_pointer),
+    3=(gp,    x3),
+    4=(tp,    x4),
+    5=(t0,    x5),
+    6=(t1,    x6),
+    7=(t2,    x7),
+    8=(s0,    x8),
+    9=(s1,    x9),
+    10=(a0,  x10),
+    11=(a1,  x11),
+    12=(a2,  x12),
+    13=(a3,  x13),
+    14=(a4,  x14),
+    15=(a5,  x15),
+    16=(a6,  x16),
+    17=(a7,  x17),
+    18=(s2,  x18),
+    19=(s3,  x19),
+    20=(s4,  x20),
+    21=(s5,  x21),
+    22=(s6,  x22),
+    23=(s7,  x23),
+    24=(s8,  x24),
+    25=(s9,  x25),
+    26=(s10, x26),
+    27=(s11, x27),
+    28=(t3,  x28),
+    29=(t4,  x29),
+    30=(t5,  x30),
+    31=(t6,  x31)
+}
+

@@ -1,0 +1,182 @@
+
+.data
+   mu: .byte  0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+               0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0
+
+.text
+
+### Function Definitions ###
+
+show_and_delay:
+         # Show LED matrix
+           li   a0, mu              # Load the base address of mu
+           out  a0, 0x3108          # Send matrix address to output
+           li   a0, 0x20            # Load delay duration
+           out  a0, 0x3104          # Send delay duration to output
+
+         # Wait "some time" (looping 20 times)
+           li   t0, 0               # Initialize counter
+           li   t1, 20              # Set loop limit
+    bc_10: beq  t0, t1, ec_10       # Break loop if t0 == t1
+           addi t0, t0, 1           # Increment counter
+           beq  x0, x0, bc_10       # Repeat
+    ec_10: return
+
+vfill_asm: 
+           # Arguments:
+           #   a0: matrix (base address)
+           #   a1: neltos (number of elements)
+           #   a2: value (to fill with)
+           li   t0, 0               # Initialize loop counter t0 = 0
+vfill_loop:
+           beq  t0, a1, vfill_end   # Exit if t0 == neltos
+           add  t2, a0, t0          # Compute matrix[t0]
+           sb   a2, (t2)           # MEM[matrix[t0]] = value
+           addi t0, t0, 1           # Increment t0
+           beq  x0, x0, vfill_loop  # Repeat loop
+vfill_end:
+           return
+
+vadd_asm: 
+           # Arguments:
+           #   a0: matrix (base address)
+           #   a1: neltos (number of elements)
+           #   a2: value (to add)
+           li   t0, 0               # Initialize loop counter t0 = 0
+vadd_loop:
+           beq  t0, a1, vadd_end    # Exit if t0 == neltos
+           add  t2, a0, t0          # Compute matrix[t0]
+           lb   t3, (t2)           # Load matrix[t0]
+           add  t3, t3, a2          # Add value to matrix[t0]
+           sb   t3, (t2)           # Store back result in matrix[t0]
+           addi t0, t0, 1           # Increment t0
+           beq  x0, x0, vadd_loop   # Repeat loop
+vadd_end:
+           return
+
+without_ext: 
+           # Arguments:
+           #   a0: mu (base address)
+           #   a1: neltos
+           #   a2: color
+           addi sp, sp, -8          # Reserve stack space
+           sw a0, 0(sp)             # Save a0
+           sw a1, 4(sp)             # Save a1
+
+           # Call vadd_asm
+           call vadd_asm
+
+           # Show screen and wait
+           call show_and_delay
+
+           # Fill screen with black
+           lw  a0, 0(sp)            # Restore a0
+           lw  a1, 4(sp)            # Restore a1
+           li  a2, 0x00             # Load black color
+           call vfill_asm           # Call vfill
+
+           addi sp, sp, 8           # Restore stack
+           return
+
+with_ext: 
+           # Arguments:
+           #   a0: mu (base address)
+           #   a1: neltos
+           #   a2: color
+           addi sp, sp, -8          # Reserve stack space
+           sw a0, 0(sp)             # Save a0
+           sw a1, 4(sp)             # Save a1
+
+           # Call vadd
+           vadd a1 (a0) a2
+
+           # Show screen and wait
+           call show_and_delay
+
+           # Fill screen with black
+           lw a0, 0(sp)             # Restore a0
+           lw a1, 4(sp)             # Restore a1
+           vfill a1 (a0) 0x00       # Fill with black
+
+           addi sp, sp, 8           # Restore stack
+           return
+
+main: 
+         ##### WITH Extension #####
+         rdcycle s0                # Measure cycles
+
+         # Green (mu, 8*24, 0x0a)
+           li   a0, mu
+           li   a1, 168
+           li   a2, 0x0a
+           call with_ext
+
+         # Yellow (mu+192, 8*24, 0x08)
+           li   a0, mu
+           addi a0, a0, 192
+           li   a1, 168
+           li   a2, 0x08
+           call with_ext
+
+         # Red (mu+384, 8*24, 0x03)
+           li   a0, mu
+           addi a0, a0, 384
+           li   a1, 168
+           li   a2, 0x03
+           call with_ext
+
+         rdcycle s2                # Measure cycles
+         sub s2, s2, s0            # Compute cycle difference
+
+         ##### WITHOUT Extension #####
+         rdcycle s0                # Measure cycles
+
+         # Green (mu, 8*24, 0x0a)
+           li   a0, mu
+           li   a1, 168
+           li   a2, 0x0a
+           call without_ext
+
+         # Yellow (mu+192, 8*24, 0x08)
+           li   a0, mu
+           addi a0, a0, 192
+           li   a1, 168
+           li   a2, 0x08
+           call without_ext
+
+         # Red (mu+384, 8*24, 0x03)
+           li   a0, mu
+           addi a0, a0, 384
+           li   a1, 168
+           li   a2, 0x03
+           call without_ext
+
+         rdcycle s1                # Measure cycles
+         sub s1, s1, s0            # Compute cycle difference
+
+         # End of program
+         stop
