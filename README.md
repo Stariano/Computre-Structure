@@ -8,3 +8,4 @@ These assignments are grouped by the Computer Structure / Computer Organization 
 
 ## `microprogramming-lab2`
 - The microprogramming project is accompanied by `Assignment 2 Microprogramming.pdf`, and configuration data (`ase_asm.txt`, `ase_mc.txt`, `mc_base.txt`, etc.).
+- The `report.pdf`.
